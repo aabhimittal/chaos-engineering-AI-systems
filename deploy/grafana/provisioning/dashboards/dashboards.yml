@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: chaos-lab
+    orgId: 1
+    folder: "AI Chaos Lab"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

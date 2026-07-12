@@ -1,0 +1,23 @@
+name: embedding_drift
+description: >
+  Simulate embedding drift (e.g. after an embedding-model upgrade) by perturbing
+  query vectors with noise and a systematic bias. Degrades retrieval quality, so
+  the RAG target grounds its answers on the wrong documents.
+
+target:
+  name: rag_agent
+  params:
+    top_k: 3
+
+injectors:
+  - name: embedding_drift
+    intensity: 0.7
+
+steady_state:
+  min_correctness: 0.55
+  min_overall: 0.55
+  max_hijacked_rate: 0.0
+  max_p95_latency_ms: 3000
+
+runs: 3
+seed: 1337

@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chaoslab"
+version = "0.1.0"
+description = "AI-native Chaos Lab: chaos engineering framework for AI/LLM systems"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Abhishek Mittal" }]
+keywords = ["chaos-engineering", "llm", "ai", "mlops", "resilience", "reliability"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+# Real backends — the framework runs fully offline without any of these.
+claude = ["anthropic>=0.39"]
+mlflow = ["mlflow>=2.9"]
+prometheus = ["prometheus-client>=0.19"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.5"]
+all = ["anthropic>=0.39", "mlflow>=2.9", "prometheus-client>=0.19"]
+
+[project.scripts]
+chaoslab = "chaoslab.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/aabhimittal/chaos-engineering-ai-systems"
+
+[tool.setuptools.packages.find]
+include = ["chaoslab*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

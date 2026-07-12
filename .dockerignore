@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.chaoslab/
+mlruns/
+.venv/
+venv/
+docs/
+tests/

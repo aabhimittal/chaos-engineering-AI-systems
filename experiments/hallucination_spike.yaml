@@ -1,0 +1,23 @@
+name: hallucination_spike
+description: >
+  Simulate a hallucination spike by fabricating confident, unsupported claims in
+  the model's output. Measures how much the target's reasoning quality and
+  groundedness degrade, and whether answers still contain the expected facts.
+
+target:
+  name: rag_agent
+  params:
+    top_k: 3
+
+injectors:
+  - name: hallucination_spike
+    intensity: 0.85
+
+steady_state:
+  min_correctness: 0.60
+  min_overall: 0.60
+  max_hijacked_rate: 0.0
+  max_p95_latency_ms: 3000
+
+runs: 3
+seed: 1337

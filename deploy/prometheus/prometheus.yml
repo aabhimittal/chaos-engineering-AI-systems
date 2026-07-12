@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # Local docker-compose: scrape the chaos-agent container directly.
+  - job_name: chaos-agent
+    static_configs:
+      - targets: ["chaos-agent:8000"]
+
+  # Kubernetes: discover pods annotated with prometheus.io/scrape=true.
+  - job_name: kubernetes-pods
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: (.+)
+        target_label: __address__
+        replacement: ${1}
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace

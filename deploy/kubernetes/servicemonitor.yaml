@@ -1,0 +1,19 @@
+# Prometheus Operator ServiceMonitor so Prometheus scrapes the chaos agent's
+# robustness metrics. Requires the Prometheus Operator CRDs; if you run vanilla
+# Prometheus, use the prometheus.io/scrape pod annotations instead (already set
+# on the Deployment).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: chaos-agent
+  namespace: chaos-lab
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: chaos-agent
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

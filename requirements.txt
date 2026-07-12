@@ -1,0 +1,13 @@
+# Core (required) — the framework runs fully offline with just this.
+PyYAML>=6.0
+
+# Optional real backends. Uncomment / install the extras you need:
+#   pip install -e ".[all]"
+# anthropic>=0.39          # real Claude generation + LLM judge
+# mlflow>=2.9              # real MLflow experiment tracking
+# prometheus-client>=0.19  # push metrics to a Prometheus pushgateway
+
+# Dev tooling
+pytest>=7.4
+pytest-cov>=4.1
+ruff>=0.5

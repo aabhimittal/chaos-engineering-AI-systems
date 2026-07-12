@@ -1,0 +1,32 @@
+# Least-privilege RBAC for the chaos agent. The agent runs AI-level chaos in
+# process, so it needs almost nothing from the cluster — only read access to its
+# own pods/configmaps for introspection. This keeps blast radius contained.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chaos-agent
+  namespace: chaos-lab
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: chaos-agent
+  namespace: chaos-lab
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: chaos-agent
+  namespace: chaos-lab
+subjects:
+  - kind: ServiceAccount
+    name: chaos-agent
+    namespace: chaos-lab
+roleRef:
+  kind: Role
+  name: chaos-agent
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,136 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "AI Chaos Lab — Robustness & Blast Radius",
+  "tags": ["chaos", "ai", "resilience"],
+  "timezone": "",
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "experiment",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(chaoslab_robustness_score, experiment)",
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "AI Robustness Score",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "chaoslab_robustness_score{experiment=~\"$experiment\"}", "legendFormat": "{{experiment}}" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 60 },
+              { "color": "yellow", "value": 75 },
+              { "color": "green", "value": 90 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2,
+      "type": "gauge",
+      "title": "Blast Radius (fraction impacted)",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "chaoslab_blast_radius{experiment=~\"$experiment\"}", "legendFormat": "{{experiment}}" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.25 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Prompt-Injection Hijack Rate",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "chaoslab_hijacked_rate{experiment=~\"$experiment\"}", "legendFormat": "{{experiment}}" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.0001 }
+            ]
+          }
+        },
+        "options": { "colorMode": "background" }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Reasoning Degradation over Time",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "chaoslab_reasoning_degradation{experiment=~\"$experiment\"}", "legendFormat": "{{experiment}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Robustness Score over Time",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "chaoslab_robustness_score{experiment=~\"$experiment\"}", "legendFormat": "{{experiment}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 100, "custom": { "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Steady-State Violations",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "chaoslab_steady_state_violation{experiment=~\"$experiment\"}", "legendFormat": "{{experiment}}", "instant": true }
+      ]
+    }
+  ]
+}
