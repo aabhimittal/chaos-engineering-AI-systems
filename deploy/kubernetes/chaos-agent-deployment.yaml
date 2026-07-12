@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-agent
+  namespace: chaos-lab
+  labels:
+    app: chaos-agent
+    app.kubernetes.io/part-of: ai-chaos-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-agent
+  template:
+    metadata:
+      labels:
+        app: chaos-agent
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: chaos-agent
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: chaos-agent
+          image: chaoslab:latest
+          imagePullPolicy: IfNotPresent
+          args: ["--dir", "/etc/chaoslab/experiments", "--port", "8000", "--interval", "300"]
+          ports:
+            - name: metrics
+              containerPort: 8000
+          env:
+            # Offline-first: no keys required. Provide these to use real backends.
+            - name: CHAOSLAB_LLM_PROVIDER
+              value: "mock"
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.chaos-lab.svc.cluster.local:5000"
+            - name: CHAOSLAB_PUSHGATEWAY
+              value: ""
+            # - name: ANTHROPIC_API_KEY
+            #   valueFrom: { secretKeyRef: { name: chaoslab-secrets, key: anthropic-api-key } }
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8000 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          volumeMounts:
+            - name: experiments
+              mountPath: /etc/chaoslab/experiments
+              readOnly: true
+      volumes:
+        - name: experiments
+          configMap:
+            name: chaos-experiments
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaos-agent
+  namespace: chaos-lab
+  labels:
+    app: chaos-agent
+spec:
+  selector:
+    app: chaos-agent
+  ports:
+    - name: metrics
+      port: 8000
+      targetPort: 8000

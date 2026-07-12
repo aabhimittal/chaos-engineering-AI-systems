@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chaos-lab
+  labels:
+    app.kubernetes.io/part-of: ai-chaos-lab
+    purpose: chaos-engineering

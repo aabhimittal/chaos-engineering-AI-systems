@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# chaoslab local run store
+.chaoslab/
+
+# MLflow local
+mlruns/
+mlflow.db
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

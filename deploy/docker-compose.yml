@@ -1,0 +1,61 @@
+# Full local AI Chaos Lab stack:
+#   chaos-agent  runs experiments on a loop, exposes /metrics, logs to MLflow
+#   prometheus   scrapes the agent's robustness metrics + evaluates alerts
+#   grafana      visualizes robustness / blast radius (auto-provisioned)
+#   mlflow       tracks resilience metrics per run
+#
+#   make compose-up   # http://localhost:3000 (grafana), :9090 (prom), :5000 (mlflow)
+services:
+  chaos-agent:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: chaoslab:latest
+    command: ["--dir", "experiments", "--port", "8000", "--interval", "60"]
+    environment:
+      CHAOSLAB_LLM_PROVIDER: mock
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      CHAOSLAB_MLFLOW_EXPERIMENT: ai-chaos-lab
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mlflow
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - chaos-agent
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.2
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    volumes:
+      - mlflow-data:/mlflow
+    ports:
+      - "5000:5000"
+
+volumes:
+  mlflow-data:
