@@ -25,6 +25,9 @@ in ways infra chaos never surfaces:
 | 🧭 **Embedding drift** | Vector distribution shifts (e.g. after a model upgrade), degrading retrieval | `embedding` |
 | 💉 **Prompt injection** | Adversarial text (direct or via a poisoned document) hijacks the model | `prompt` / `retrieval` |
 | 🤖 **Robotics sensor noise** | Perception degrades — noise, dropout, miscalibration — flipping safety decisions | `sensor` |
+| 📉 **Context truncation** | Context-window overflow drops/clips retrieved docs; the answer passage vanishes | `retrieval` |
+| ✂️ **Output truncation** | `max_tokens` / streaming cutoff clips the answer's tail (where the payload lives) | `llm_output` |
+| 🔤 **Unicode perturbation** | Homoglyph confusables + zero-width chars — visually identical, byte-different | `prompt` |
 | 🧱 **Infra faults** | Latency + dependency errors, for blended experiments | any stage |
 
 Each injector is deterministic (seeded), so runs are **reproducible**. The lab
@@ -99,6 +102,39 @@ injection** — exactly the kind of finding that should block an LLM rollout.
 Swap in the real Claude backend (with a hardened system prompt) and re-run to
 see defenses move the score.
 
+## Beyond a single run: recovery & breaking-point analysis
+
+Two higher-order analyses answer questions a single experiment can't
+([details](docs/advanced-analyses.md)):
+
+**Recovery / MTTR — how long does the pain last?** Drive a *transient* fault
+(rise → peak → decay) and measure how many timesteps after the peak the system
+recovers:
+
+```bash
+chaoslab recover experiments/transient_hallucination.yaml
+```
+```
+  Blast radius   : ▁▁▃▄▂▁▁▁  (peak 43% @ t=3)
+  MTTR           : 1 timestep(s) after peak
+  Recovered      : yes
+```
+
+**Breaking-point search — what is the resilience threshold?** Adaptively find
+the *smallest* fault intensity that breaks the steady-state hypothesis:
+
+```bash
+chaoslab search experiments/prompt_injection.yaml
+```
+```
+  Verdict            : breaks at intensity 0.03
+  Resilience threshold: 0.03  (breaks at this intensity scale)
+```
+
+Prompt injection breaking at `0.03` while drift/sensor noise never break gives
+one comparable number to prioritize hardening — and to track across model
+versions.
+
 ## Use it as a rollout gate
 
 `chaoslab run ... --fail-on-violation` exits non-zero when the steady-state
@@ -153,6 +189,7 @@ docs/                architecture, failure modes, robustness score, quickstart
 * [Architecture](docs/architecture.md)
 * [AI failure modes](docs/failure-modes.md)
 * [The AI Robustness Score](docs/robustness-score.md)
+* [Advanced analyses (recovery / MTTR & breaking-point search)](docs/advanced-analyses.md)
 
 ## Development
 

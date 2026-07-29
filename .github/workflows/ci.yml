@@ -31,3 +31,8 @@ jobs:
 
       - name: Smoke-run every experiment (offline, no keys)
         run: chaoslab run experiments/ --no-sinks
+
+      - name: Smoke-run advanced analyses
+        run: |
+          chaoslab recover experiments/transient_hallucination.yaml
+          chaoslab search experiments/prompt_injection.yaml

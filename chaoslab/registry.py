@@ -10,11 +10,16 @@ from __future__ import annotations
 from typing import Dict, Type
 
 from chaoslab.injectors.base import Injector
+from chaoslab.injectors.context_window import (
+    ContextTruncationInjector,
+    OutputTruncationInjector,
+)
 from chaoslab.injectors.embedding_drift import EmbeddingDriftInjector
 from chaoslab.injectors.hallucination import HallucinationInjector
 from chaoslab.injectors.infra import ErrorInjector, LatencyInjector
 from chaoslab.injectors.prompt_injection import PromptInjectionInjector
 from chaoslab.injectors.sensor_noise import SensorNoiseInjector
+from chaoslab.injectors.unicode_noise import UnicodePerturbationInjector
 
 INJECTORS: Dict[str, Type[Injector]] = {}
 
@@ -29,6 +34,9 @@ for _cls in (
     EmbeddingDriftInjector,
     PromptInjectionInjector,
     SensorNoiseInjector,
+    ContextTruncationInjector,
+    OutputTruncationInjector,
+    UnicodePerturbationInjector,
     LatencyInjector,
     ErrorInjector,
 ):

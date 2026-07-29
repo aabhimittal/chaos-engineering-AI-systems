@@ -87,7 +87,13 @@ class Experiment:
         runs: int = 1,
         seed: Optional[int] = None,
         config: Optional[Config] = None,
+        recovery_profile: Optional[List[float]] = None,
     ):
+        if not isinstance(injector_specs, list):
+            raise ValueError("'injectors' must be a list of injector specs")
+        for spec in injector_specs:
+            if "name" not in spec:
+                raise ValueError(f"injector spec missing required 'name': {spec!r}")
         self.name = name
         self.description = description
         self.target_spec = target_spec
@@ -96,10 +102,14 @@ class Experiment:
         self.runs = max(1, int(runs))
         self.cfg = config or load_config()
         self.seed = self.cfg.seed if seed is None else int(seed)
+        # Optional transient intensity profile for recovery/MTTR analysis.
+        self.recovery_profile = [float(x) for x in recovery_profile] if recovery_profile else None
 
     # -- loading ------------------------------------------------------------
     @classmethod
     def from_dict(cls, data: Dict[str, Any], config: Optional[Config] = None) -> "Experiment":
+        if "name" not in data:
+            raise ValueError("experiment spec missing required field 'name'")
         return cls(
             name=data["name"],
             description=data.get("description", ""),
@@ -109,6 +119,7 @@ class Experiment:
             runs=data.get("runs", 1),
             seed=data.get("seed"),
             config=config,
+            recovery_profile=data.get("recovery_profile"),
         )
 
     @classmethod
@@ -122,12 +133,17 @@ class Experiment:
         spec = self.target_spec or {"name": "rag_agent"}
         return build_target(spec.get("name", "rag_agent"), config=self.cfg, **spec.get("params", {}))
 
-    def _build_injectors(self):
+    def _build_injectors(self, scale: float = 1.0):
+        """Instantiate the spec's injectors, scaling every intensity by ``scale``.
+
+        ``scale`` (used by the recovery and breaking-point analyses) multiplies
+        each injector's configured intensity and clamps to ``[0, 1]``.
+        """
         injectors = []
         for spec in self.injector_specs:
             params = dict(spec.get("params", {}))
-            if "intensity" in spec:
-                params["intensity"] = spec["intensity"]
+            base = float(spec.get("intensity", 0.5))
+            params["intensity"] = max(0.0, min(1.0, base * scale))
             injectors.append(build_injector(spec["name"], **params))
         return injectors
 
@@ -149,31 +165,50 @@ class Experiment:
             scores.append(score)
         return scores, latencies
 
+    def _collect(self, target, judge, intensity_scale: float = 1.0, runs: Optional[int] = None):
+        """Run baseline + chaos (at ``intensity_scale``) over ``runs`` repetitions."""
+        runs = self.runs if runs is None else runs
+        baseline: List[ReasoningScore] = []
+        chaos: List[ReasoningScore] = []
+        latencies: List[float] = []
+        events: List[InjectionEvent] = []
+        for r in range(runs):
+            b_scores, _ = self._score_all(target, judge, identity_perturb, None, r)
+            baseline.extend(b_scores)
+            if intensity_scale <= 0.0:
+                # Recovery / baseline phase: chaos removed, identical code path.
+                c_scores, c_lat = self._score_all(target, judge, identity_perturb, None, r)
+            else:
+                runtime = ChaosRuntime(self._build_injectors(intensity_scale), base_seed=self.seed + r)
+                c_scores, c_lat = self._score_all(target, judge, runtime.perturb, runtime, r)
+                events.extend(runtime.events)
+            chaos.extend(c_scores)
+            latencies.extend(c_lat)
+        return baseline, chaos, latencies, events
+
+    def measure(
+        self,
+        intensity_scale: float = 1.0,
+        target: Optional[Target] = None,
+        judge: Optional[ReasoningJudge] = None,
+        runs: Optional[int] = None,
+    ):
+        """Evaluate the target at a given fault intensity vs a clean baseline.
+
+        Returns ``(report, metrics, events)``. Reusable building block for the
+        recovery and breaking-point analyses; ``run`` is this plus the sinks.
+        """
+        target = target or self._build_target()
+        judge = judge or ReasoningJudge(self.cfg)
+        baseline, chaos, latencies, events = self._collect(target, judge, intensity_scale, runs)
+        metrics = self._aggregate_metrics(chaos, latencies)
+        violations = self.steady_state.evaluate(metrics)
+        report = compute_robustness(baseline, chaos, violations)
+        return report, metrics, events
+
     # -- execution ----------------------------------------------------------
     def run(self, sinks: bool = True) -> ExperimentResult:
-        target = self._build_target()
-        judge = ReasoningJudge(self.cfg)
-
-        baseline_scores: List[ReasoningScore] = []
-        chaos_scores: List[ReasoningScore] = []
-        chaos_latencies: List[float] = []
-        events: List[InjectionEvent] = []
-
-        for r in range(self.runs):
-            # Baseline: no chaos.
-            b_scores, _ = self._score_all(target, judge, identity_perturb, None, r)
-            baseline_scores.extend(b_scores)
-
-            # Chaos: injectors active.
-            runtime = ChaosRuntime(self._build_injectors(), base_seed=self.seed + r)
-            c_scores, c_lat = self._score_all(target, judge, runtime.perturb, runtime, r)
-            chaos_scores.extend(c_scores)
-            chaos_latencies.extend(c_lat)
-            events.extend(runtime.events)
-
-        metrics = self._aggregate_metrics(chaos_scores, chaos_latencies)
-        violations = self.steady_state.evaluate(metrics)
-        report = compute_robustness(baseline_scores, chaos_scores, violations)
+        report, metrics, events = self.measure()
 
         aborted = self.cfg.strict_incident_free and report.blast_radius > self.cfg.max_blast_radius
 

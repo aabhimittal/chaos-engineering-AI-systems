@@ -54,6 +54,34 @@ safety decision (stop vs proceed) from a distance reading; near the decision
 boundary, noise can flip the call — quantifying perception fragility for embodied
 AI.
 
+## 📉 Context truncation — `context_truncation`
+
+**Stage:** `retrieval`
+
+Simulates a context-window overflow / aggressive truncation policy: trailing
+retrieved documents are dropped and the survivors are clipped to a shrinking
+character budget. At high intensity the retrieval is *starved* entirely (zero
+docs), and the answer-bearing passage silently vanishes — a very common,
+under-tested RAG failure as prompts grow.
+
+## ✂️ Output truncation — `output_truncation`
+
+**Stage:** `llm_output`
+
+Models generation hitting `max_tokens` or a dropped streaming connection. The
+answer keeps a leading fraction and loses its tail — where the payload often
+lives — so it stays fluent and plausible while correctness quietly drops.
+
+## 🔤 Unicode perturbation — `unicode_perturbation`
+
+**Stage:** `prompt`
+
+Corrupts the query with homoglyph confusables (Latin `a` → Cyrillic `а`) and
+invisible zero-width characters. Visually identical to a human, but a different
+byte sequence, so exact retrieval/matching degrades. Models copy-paste
+encoding bugs and adversarial filter-evasion — the kind of silent failure
+unicode-naive systems ship to production.
+
 ## 🧱 Infrastructure faults — `latency`, `dependency_error`
 
 **Stages:** `llm_output` (latency), `retrieval` (error)

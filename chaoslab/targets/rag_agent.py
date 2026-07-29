@@ -66,10 +66,17 @@ def _embed(text: str) -> List[float]:
 
 
 def _cosine(a: List[float], b: List[float]) -> float:
+    if len(a) != len(b):
+        # Mismatched dims (e.g. a truncated/expanded drifted vector): compare the
+        # shared prefix rather than crashing on zip-misalignment downstream.
+        n = min(len(a), len(b))
+        a, b = a[:n], b[:n]
     dot = sum(x * y for x, y in zip(a, b))
     na = math.sqrt(sum(x * x for x in a)) or 1.0
     nb = math.sqrt(sum(y * y for y in b)) or 1.0
-    return dot / (na * nb)
+    cos = dot / (na * nb)
+    # A non-finite score would make the retrieval sort unstable; treat as worst.
+    return cos if math.isfinite(cos) else -1.0
 
 
 class RagAgentTarget(Target):
