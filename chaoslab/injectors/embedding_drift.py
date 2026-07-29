@@ -24,9 +24,11 @@ from chaoslab.injectors.base import Injector, Stage
 
 def _as_vector(payload: Any) -> List[float] | None:
     if isinstance(payload, (list, tuple)) and payload and all(
-        isinstance(x, (int, float)) for x in payload
+        isinstance(x, (int, float)) and not isinstance(x, bool) for x in payload
     ):
-        return [float(x) for x in payload]
+        # Coerce non-finite inputs (NaN/Inf from a broken embedding service) to 0
+        # so downstream retrieval degrades gracefully instead of producing NaN.
+        return [float(x) if math.isfinite(float(x)) else 0.0 for x in payload]
     return None
 
 

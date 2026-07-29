@@ -1,0 +1,30 @@
+name: compound_incident
+description: >
+  A realistic incident is rarely a single fault. This experiment blends
+  correlated failures — embedding drift degrading retrieval AND a hallucination
+  spike on top — to measure compounded blast radius. Injectors compose: each
+  perturbs its own pipeline stage in the same run.
+
+target:
+  name: rag_agent
+  params:
+    top_k: 3
+
+injectors:
+  - name: embedding_drift
+    intensity: 0.6
+  - name: hallucination_spike
+    intensity: 0.7
+  - name: latency
+    intensity: 0.4
+    params:
+      base_ms: 1200
+
+steady_state:
+  min_correctness: 0.55
+  min_overall: 0.60
+  max_hijacked_rate: 0.0
+  max_p95_latency_ms: 2500
+
+runs: 3
+seed: 1337

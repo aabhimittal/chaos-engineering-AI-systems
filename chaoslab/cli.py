@@ -95,6 +95,73 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _spark(values: List[float], lo: float = 0.0, hi: float = 1.0) -> str:
+    blocks = "▁▂▃▄▅▆▇█"
+    out = []
+    for v in values:
+        frac = 0.0 if hi == lo else max(0.0, min(1.0, (v - lo) / (hi - lo)))
+        out.append(blocks[int(frac * (len(blocks) - 1))])
+    return "".join(out)
+
+
+def _cmd_recover(args: argparse.Namespace) -> int:
+    from chaoslab.analysis.recovery import run_transient
+
+    exp = Experiment.from_yaml(args.experiment, config=load_config())
+    profile = None
+    if args.profile:
+        profile = [float(x) for x in args.profile.split(",")]
+    elif exp.recovery_profile:
+        profile = exp.recovery_profile
+    report = run_transient(exp, profile=profile)
+
+    if args.json:
+        print(json.dumps(report.as_dict(), indent=2))
+        return 0
+
+    print(f"\n  Recovery analysis: {report.name}")
+    blasts = [s["blast_radius"] for s in report.timeline]
+    print(f"  Blast radius   : {_spark(blasts)}  (peak {report.peak_blast_radius:.0%} @ t={report.peak_index})")
+    print(f"  Min score      : {report.min_score:.1f}/100")
+    if report.mttr_steps is None:
+        print("  Recovery       : did NOT recover within the profile ⚠️")
+    else:
+        print(f"  MTTR           : {report.mttr_steps} timestep(s) after peak")
+        print(f"  Recovered      : {'yes' if report.recovered else 'no'}")
+    print("  Timeline:")
+    for s in report.timeline:
+        flag = "ok " if s["steady_state_holds"] else "VIO"
+        print(
+            f"    t={s['t']}  intensity={s['intensity']:.2f}  blast={s['blast_radius']:.2f}  "
+            f"score={s['score']:.0f}  [{flag}]"
+        )
+    print()
+    return 0
+
+
+def _cmd_search(args: argparse.Namespace) -> int:
+    from chaoslab.analysis.search import find_breaking_point
+
+    exp = Experiment.from_yaml(args.experiment, config=load_config())
+    report = find_breaking_point(exp, lo=args.lo, hi=args.hi, grid=args.grid, tol=args.tol)
+
+    if args.json:
+        print(json.dumps(report.as_dict(), indent=2))
+        return 0
+
+    print(f"\n  Breaking-point search: {report.name}")
+    print(f"  Verdict            : {report.verdict}")
+    if report.resilience_threshold is not None:
+        print(f"  Resilience threshold: {report.resilience_threshold:.2f}  (breaks at this intensity scale)")
+    print(f"  Holds up to        : {report.holds_up_to:.2f}")
+    print("  Samples:")
+    for s in sorted(report.samples, key=lambda x: x["intensity"]):
+        flag = "ok " if s["holds"] else "VIO"
+        print(f"    intensity={s['intensity']:.2f}  score={s['score']:.0f}  blast={s['blast_radius']:.2f}  [{flag}]")
+    print()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chaoslab", description="AI-native chaos engineering lab")
     p.add_argument("--version", action="version", version=f"chaoslab {__version__}")
@@ -117,6 +184,21 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, default=8000, help="metrics port")
     serve.add_argument("--once", action="store_true", help="run a single cycle then exit")
     serve.set_defaults(func=_cmd_serve)
+
+    recover = sub.add_parser("recover", help="transient chaos + recovery (MTTR) analysis")
+    recover.add_argument("experiment", help="experiment YAML file")
+    recover.add_argument("--profile", help="comma-separated intensity multipliers, e.g. 0,0.5,1,1,0.5,0")
+    recover.add_argument("--json", action="store_true", help="emit JSON")
+    recover.set_defaults(func=_cmd_recover)
+
+    search = sub.add_parser("search", help="find the resilience threshold (breaking-point search)")
+    search.add_argument("experiment", help="experiment YAML file")
+    search.add_argument("--lo", type=float, default=0.0, help="lowest intensity scale")
+    search.add_argument("--hi", type=float, default=1.0, help="highest intensity scale")
+    search.add_argument("--grid", type=int, default=5, help="coarse scan resolution")
+    search.add_argument("--tol", type=float, default=0.03, help="bisection tolerance")
+    search.add_argument("--json", action="store_true", help="emit JSON")
+    search.set_defaults(func=_cmd_search)
 
     return p
 

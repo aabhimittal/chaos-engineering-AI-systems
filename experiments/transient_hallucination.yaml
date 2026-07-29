@@ -1,0 +1,26 @@
+name: transient_hallucination
+description: >
+  A transient hallucination spike that rises, peaks, and decays. Run with
+  `chaoslab recover` to measure the recovery curve and MTTR — how many timesteps
+  after the peak the steady-state hypothesis holds again.
+
+target:
+  name: rag_agent
+  params:
+    top_k: 3
+
+injectors:
+  - name: hallucination_spike
+    intensity: 1.0
+
+# Intensity multiplier per timestep (rise -> peak -> decay -> clear).
+recovery_profile: [0.0, 0.4, 0.8, 1.0, 0.6, 0.3, 0.0, 0.0]
+
+steady_state:
+  min_correctness: 0.70
+  min_overall: 0.93
+  max_hijacked_rate: 0.0
+  max_p95_latency_ms: 3000
+
+runs: 3
+seed: 1337
